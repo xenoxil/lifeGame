@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/assets/logotype-3dba0350.svg" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Life</title>
+    <script src="index.js" defer></script>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <h1 class="title">Игра "Жизнь"</h1>
+    <div class="setupBar">
+      <input class="setupBar__sideWidth" type="number" placeholder="Укажите ширину поля" />
+      <input class="setupBar__sideHeight" type="number" placeholder="Укажите высоту поля" />
+      <button class="setupBar__generateButton" type="button">создать поле</button>
+      <button class="setupBar__resetButton" type="reset">очистить поле</button>
+      <button class="setupBar__runButton" type="button">запустить</button>
+    </div>
+    <canvas class="board" width="0" height="0" id="board"></canvas>
+  </body>
+</html>
