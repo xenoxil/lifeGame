@@ -1,8 +1,10 @@
 const board = document.querySelector('.board');
 const ctx = board.getContext('2d');
-const cellSize = 5;
+const cellSize = 7;
 let gameIsGoing = false;
 let generation = 0;
+let cache = {};
+let history = [];
 
 const boardWidth = document.querySelector('.setupBar__sideWidth');
 const boardHeight = document.querySelector('.setupBar__sideHeight');
@@ -10,140 +12,193 @@ let randomGenerating = true;
 
 let currentBoardState = [];
 let previousBoardState = [];
-let currentLife = [];
-let previousLife = [];
+let currentLife = new Set();
+let previousLife = new Set();
+let cellsToCalc = new Set();
 // createBoardState();
-// generateBoard();
+// drawBoard();
 
-function generateBoard() {
+function drawBoard() {
   if (!boardWidth.value || !boardHeight.value) {
     return alert('Поле не возможно создать');
   }
   board.height = boardHeight.value * cellSize;
   board.width = boardWidth.value * cellSize;
-  for (let x = 0; x < boardWidth.value; x++) {
-    for (let y = 0; y < boardHeight.value; y++) {
-      drawCell(x, y, cellSize, currentBoardState[x][y] ? `#cc3939` : 'grey');
-    }
+  ctx.fillStyle = 'grey';
+  ctx.fillRect(0, 0, board.width, board.height);
+  ctx.fillStyle = 'black';
+  for (let x = 1; x < boardWidth.value; x++) {
+    ctx.fillRect(x * cellSize, 0, 1, board.height);
   }
+  for (let y = 1; y < boardHeight.value; y++) {
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, y * cellSize, board.width, 1);
+  }
+  // debugger;
+  previousLife.forEach((lifeCell) => {
+    const [x, y] = lifeCell.split(',');
+    drawCell(x, y, cellSize, `red`);
+  });
 }
 function drawCell(x, y, size, color) {
   ctx.fillStyle = color;
-  // ctx.strokeStyle = 'black';
+  ctx.strokeStyle = 'black';
 
-  ctx.fillRect(x * cellSize, y * cellSize, size, size);
-  // ctx.strokeRect = (x * cellSize, y * cellSize, size, size);
+  ctx.fillRect(x * cellSize, y * cellSize, size - 1, size - 1);
+  ctx.strokeRect(x * cellSize, y * cellSize, size, size);
 }
 function createBoardState(random = false) {
-  const newState = [];
+  let newState = [];
   for (let x = 0; x < boardWidth.value; x++) {
     newState[x] = [];
     for (let y = 0; y < boardHeight.value; y++) {
-      // каждая ~3 клетка
-      newState[x][y] = random ? (Math.random() > 0.8 ? 1 : 0) : 0;
+      // каждая ~5 клетка
+      const value = random ? (Math.random() > 0.8 ? 1 : 0) : 0;
+      if (value) previousLife.add(`${x},${y}`);
+      newState[x][y] = value;
     }
   }
   return newState;
 }
 function startRound() {
-  if (!gameIsGoing || currentBoardState.length === 0) return;
+  console.log(`round`, generation);
+  if (!gameIsGoing || previousLife.size === 0) {
+    console.log(`GameOver!!!!`);
+    return;
+  }
   console.log(`Generation №${++generation}`);
-  const game = setTimeout(() => {
-    var startTime = performance.now();
-    for (let x = 0; x < boardWidth.value; x++) {
-      for (let y = 0; y < boardHeight.value; y++) {
-        currentBoardState[x][y] = checkLife(x, y);
-      }
-    }
-    var endTime = performance.now();
-    if (generation === 1)
-      console.log(`Call to doSomething took ${endTime - startTime} milliseconds`);
+  const startTime = performance.now();
 
-    checkRules();
-  }, 1000);
+  // console.log(`previousLife`, previousLife);
+
+  for (let x = 0; x < boardWidth.value; x++) {
+    for (let y = 0; y < boardHeight.value; y++) {
+      currentBoardState[x][y] = checkLife(x, y);
+    }
+  }
+  // console.log(`currentLife`, currentLife);
+
+  const endTime = performance.now();
+  console.log(`Call to checkLife took ${endTime - startTime} milliseconds`);
+  checkRules();
+
   function isEqualStates() {
-    if (currentLife.length === previousLife.length) {
-      return currentLife.every((lifeCell) => {
-        return previousLife.includes(lifeCell);
-      });
+    if (currentLife.size === previousLife.size) {
+      return [...currentLife].every((lifeCell) => previousLife.has(lifeCell));
     }
     return false;
   }
-  function findAllNeighbours(x, y) {
+  function countNeighbours(x, y) {
     const xLeft = x - 1 >= 0 ? x - 1 : boardWidth.value - 1;
-    const xRight = x + 1 <= boardWidth.value - 1 ? x + 1 : 0;
+    const xRight = Number(x) + 1 <= boardWidth.value - 1 ? Number(x) + 1 : 0;
     const yUp = y - 1 >= 0 ? y - 1 : boardHeight.value - 1;
-    const yDown = y + 1 <= boardHeight.value - 1 ? y + 1 : 0;
+    const yDown = Number(y) + 1 <= boardHeight.value - 1 ? Number(y) + 1 : 0;
 
-    return [
-      currentBoardState[xLeft][yUp],
-      currentBoardState[x][yUp],
-      currentBoardState[xRight][yUp],
-      currentBoardState[xLeft][y],
-      ,
-      currentBoardState[xRight][y],
-      currentBoardState[xLeft][yDown],
-      currentBoardState[x][yDown],
-      currentBoardState[xRight][yDown],
-    ];
+    return (
+      previousBoardState[xLeft][yUp] +
+      previousBoardState[x][yUp] +
+      previousBoardState[xRight][yUp] +
+      previousBoardState[xLeft][y] +
+      previousBoardState[xRight][y] +
+      previousBoardState[xLeft][yDown] +
+      previousBoardState[x][yDown] +
+      previousBoardState[xRight][yDown]
+    );
   }
   function checkLife(x, y) {
-    let isLife = !!currentBoardState[x][y];
-    let count = 0;
-    findAllNeighbours(x, y).forEach((neighbour) => count < 4 && neighbour === 1 && count++);
-    //     в пустой (мёртвой) клетке, с которой соседствуют три живые клетки, зарождается жизнь;
-    // если у живой клетки есть две или три живые соседки, то эта клетка продолжает жить;
-    //  в противном случае (если живых соседей меньше двух или больше трёх) клетка умирает («от одиночества» или «от перенаселённости»).
+    let isLife = previousLife.has(`${x},${y}`);
+    const count = countNeighbours(x, y);
     if ((isLife && (count === 2 || count === 3)) || (!isLife && count === 3)) {
-      currentLife.push(`${x},${y}`);
+      currentLife.add(`${x},${y}`);
       return 1;
     }
     return 0;
   }
+  function isCycled() {
+    return history.some((moment) => {
+      if (moment.size === currentLife.size) {
+        return [...currentLife].every((lifeCell) => moment.has(lifeCell));
+      }
+    });
+  }
   function checkRules() {
-    // debugger;
-    if (isEqualStates() || currentLife.length === 0) {
+    console.log(`lifeSize`, currentLife.size);
+    if (isCycled() || currentLife.size === 0 || !gameIsGoing) {
       endGame();
     } else {
       previousBoardState = structuredClone(currentBoardState);
+      // previousBoardState = [...currentBoardState];
       previousLife = structuredClone(currentLife);
-      currentLife = [];
+      history.push(previousLife);
+      if (history.length > 5) {
+        history.shift();
+      }
+      // previousLife = new Set(currentLife);
+      currentLife.clear();
       ctx.reset();
-      generateBoard();
-      startRound();
+      const startTime = performance.now();
+      drawBoard();
+      const endTime = performance.now();
+      console.log(`DrawBoardIn in ${endTime - startTime} milliseconds`);
+      setTimeout(() => {
+        if (gameIsGoing) {
+          window.requestAnimationFrame(startRound);
+        }
+      }, 40);
     }
   }
   function endGame() {
+    // clearTimeout(game);
     alert('Игра окончена');
-    clearTimeout(game);
     gameIsGoing = false;
     generation = 0;
+    previousLife.clear();
+    currentLife.clear();
+    previousBoardState = createBoardState();
+    currentBoardState = createBoardState();
   }
 }
 
 const genBtn = document.querySelector('.setupBar__generateButton');
 const resetBtn = document.querySelector('.setupBar__resetButton');
 const runBtn = document.querySelector('.setupBar__runButton');
+
 genBtn.addEventListener('click', () => {
   currentBoardState = createBoardState();
-  generateBoard();
+  drawBoard();
 });
 resetBtn.addEventListener('click', () => {
   currentBoardState = createBoardState();
+  previousBoardState = createBoardState();
+  previousLife.clear();
   ctx.reset();
-  generateBoard();
+  drawBoard();
   randomGenerating = true;
-  gameIsGoing = false;
+  if (gameIsGoing) {
+    gameIsGoing = false;
+    generation = 0;
+  }
 });
 runBtn.addEventListener('click', () => {
+  if (gameIsGoing) {
+    return;
+  }
   gameIsGoing = true;
+  console.log(`runCurrentLife`, currentLife);
+
+  console.log(`runPreviousLife`, previousLife);
   if (randomGenerating) {
     ctx.reset();
     currentBoardState = createBoardState(true);
-    generateBoard();
+    // previousBoardState = [...currentBoardState];
+    previousBoardState = structuredClone(currentBoardState);
+    drawBoard();
     startRound();
   } else {
-    generateBoard();
+    // previousBoardState = [...currentBoardState];
+
+    previousBoardState = structuredClone(currentBoardState);
+    drawBoard();
     startRound();
   }
 });
@@ -157,23 +212,10 @@ board.addEventListener('mousedown', (e) => {
   if (gameIsGoing) return;
   randomGenerating = false;
   const coords = getMousePosition(board, e);
-  const x = Math.floor(coords[0] / cellSize);
-  const y = Math.floor(coords[1] / cellSize);
+  const x = Math.min(Math.floor(coords[0] / cellSize), board.width);
+  const y = Math.min(Math.floor(coords[1] / cellSize), board.height);
   currentBoardState[x][y] = 1;
+  previousLife.add(`${x},${y}`);
+  console.log(`prevLifeMouse`, previousLife);
   drawCell(x, y, cellSize, 'red');
 });
-
-// заполнить  кол-во клеток в высоту и ширину
-/*
-сгенерировать поле нужного размера
-старт 
-проверка условий:
-if(true){
-запись в временый стейт
-сравнение стейта:
-if(true){
-  конец игры
-}
-}
-
- */
