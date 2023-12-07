@@ -1,9 +1,9 @@
 const board = document.querySelector('.board');
 const ctx = board.getContext('2d');
 const cellSize = 7;
+const generationText = document.querySelector('.generationText');
 let gameIsGoing = false;
 let generation = 0;
-let cache = {};
 let history = [];
 
 const boardWidth = document.querySelector('.setupBar__sideWidth');
@@ -63,24 +63,22 @@ function createBoardState(random = false) {
 function startRound() {
   console.log(`round`, generation);
   if (!gameIsGoing || previousLife.size === 0) {
-    console.log(`GameOver!!!!`);
-    return;
+    return endGame();
   }
   console.log(`Generation №${++generation}`);
   const startTime = performance.now();
-
-  // console.log(`previousLife`, previousLife);
-
   for (let x = 0; x < boardWidth.value; x++) {
     for (let y = 0; y < boardHeight.value; y++) {
       currentBoardState[x][y] = checkLife(x, y);
     }
   }
-  // console.log(`currentLife`, currentLife);
-
-  const endTime = performance.now();
-  console.log(`Call to checkLife took ${endTime - startTime} milliseconds`);
   checkRules();
+  const endTime = performance.now();
+
+  console.log(`Call to checkLife took ${endTime - startTime} milliseconds`);
+  generationText.textContent = `Поколение №${generation} - создано за ${(
+    endTime - startTime
+  ).toFixed(2)}(ms) `;
 
   function isEqualStates() {
     if (currentLife.size === previousLife.size) {
@@ -139,6 +137,7 @@ function startRound() {
       const startTime = performance.now();
       drawBoard();
       const endTime = performance.now();
+
       console.log(`DrawBoardIn in ${endTime - startTime} milliseconds`);
       setTimeout(() => {
         if (gameIsGoing) {
@@ -149,6 +148,7 @@ function startRound() {
   }
   function endGame() {
     // clearTimeout(game);
+    console.log(`GameOver!!!!`);
     alert('Игра окончена');
     gameIsGoing = false;
     generation = 0;
@@ -172,6 +172,7 @@ resetBtn.addEventListener('click', () => {
   previousBoardState = createBoardState();
   previousLife.clear();
   ctx.reset();
+  generationText.textContent = '';
   drawBoard();
   randomGenerating = true;
   if (gameIsGoing) {

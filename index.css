@@ -18,3 +18,7 @@
 .setupBar__input {
   width: 220px;
 }
+
+.generationText {
+  text-align: center;
+}
