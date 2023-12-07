@@ -14,9 +14,6 @@ let currentBoardState = [];
 let previousBoardState = [];
 let currentLife = new Set();
 let previousLife = new Set();
-let cellsToCalc = new Set();
-// createBoardState();
-// drawBoard();
 
 function drawBoard() {
   if (!boardWidth.value || !boardHeight.value) {
@@ -34,7 +31,6 @@ function drawBoard() {
     ctx.fillStyle = 'black';
     ctx.fillRect(0, y * cellSize, board.width, 1);
   }
-  // debugger;
   previousLife.forEach((lifeCell) => {
     const [x, y] = lifeCell.split(',');
     drawCell(x, y, cellSize, `red`);
@@ -61,7 +57,6 @@ function createBoardState(random = false) {
   return newState;
 }
 function startRound() {
-  console.log(`round`, generation);
   if (!gameIsGoing || previousLife.size === 0) {
     return endGame();
   }
@@ -75,17 +70,10 @@ function startRound() {
   checkRules();
   const endTime = performance.now();
 
-  console.log(`Call to checkLife took ${endTime - startTime} milliseconds`);
   generationText.textContent = `Поколение №${generation} - создано за ${(
     endTime - startTime
   ).toFixed(2)}(ms) `;
 
-  function isEqualStates() {
-    if (currentLife.size === previousLife.size) {
-      return [...currentLife].every((lifeCell) => previousLife.has(lifeCell));
-    }
-    return false;
-  }
   function countNeighbours(x, y) {
     const xLeft = x - 1 >= 0 ? x - 1 : boardWidth.value - 1;
     const xRight = Number(x) + 1 <= boardWidth.value - 1 ? Number(x) + 1 : 0;
@@ -120,34 +108,28 @@ function startRound() {
     });
   }
   function checkRules() {
-    console.log(`lifeSize`, currentLife.size);
+    // console.log(`lifeSize`, currentLife.size);
     if (isCycled() || currentLife.size === 0 || !gameIsGoing) {
       endGame();
     } else {
       previousBoardState = structuredClone(currentBoardState);
-      // previousBoardState = [...currentBoardState];
       previousLife = structuredClone(currentLife);
       history.push(previousLife);
       if (history.length > 5) {
         history.shift();
       }
-      // previousLife = new Set(currentLife);
       currentLife.clear();
       ctx.reset();
-      const startTime = performance.now();
       drawBoard();
-      const endTime = performance.now();
 
-      console.log(`DrawBoardIn in ${endTime - startTime} milliseconds`);
       setTimeout(() => {
         if (gameIsGoing) {
           window.requestAnimationFrame(startRound);
         }
-      }, 40);
+      }, 1000 / 60);
     }
   }
   function endGame() {
-    // clearTimeout(game);
     console.log(`GameOver!!!!`);
     alert('Игра окончена');
     gameIsGoing = false;
@@ -177,7 +159,6 @@ resetBtn.addEventListener('click', () => {
   randomGenerating = true;
   if (gameIsGoing) {
     gameIsGoing = false;
-    generation = 0;
   }
 });
 runBtn.addEventListener('click', () => {
@@ -185,19 +166,14 @@ runBtn.addEventListener('click', () => {
     return;
   }
   gameIsGoing = true;
-  console.log(`runCurrentLife`, currentLife);
-
-  console.log(`runPreviousLife`, previousLife);
+  generation = 0;
   if (randomGenerating) {
     ctx.reset();
     currentBoardState = createBoardState(true);
-    // previousBoardState = [...currentBoardState];
     previousBoardState = structuredClone(currentBoardState);
     drawBoard();
     startRound();
   } else {
-    // previousBoardState = [...currentBoardState];
-
     previousBoardState = structuredClone(currentBoardState);
     drawBoard();
     startRound();
@@ -217,6 +193,5 @@ board.addEventListener('mousedown', (e) => {
   const y = Math.min(Math.floor(coords[1] / cellSize), board.height);
   currentBoardState[x][y] = 1;
   previousLife.add(`${x},${y}`);
-  console.log(`prevLifeMouse`, previousLife);
   drawCell(x, y, cellSize, 'red');
 });
